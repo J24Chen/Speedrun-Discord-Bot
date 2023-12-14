@@ -4,9 +4,8 @@ import asyncio
 from aiohttp import request
 
 bot = lightbulb.BotApp(
-    token="MTA1NTY4MjM4Nzc1NDg4OTMwOA.GoABqe.1mc_T7ffKY04iutyEHO3LmuZeermvvY8c7OwJg",
+    token="[YOUR BOT TOKEN HERE]",
     intents = hikari.Intents.ALL,
-    default_enabled_guilds=(839877146243629077)
     )
 
 
@@ -76,12 +75,17 @@ async def fact(ctx):
 ##### WR bot command, 
 # Takes in id and category and returns a video, with time and runner
 
-async def getwr(id,category):
-    # id = ctx.options.id.lower()
+async def getwr(id,category,level):
     
-    print(f'id = {id}, category = {category}')
-    url2 = f"https://www.speedrun.com/api/v1/leaderboards/{id}/category/{category}"
-    async with request("GET",url2, headers={}) as response:
+    
+    categoryURL = f"https://www.speedrun.com/api/v1/leaderboards/{id}/category/{category}"
+    levelURL = f"https://www.speedrun.com/api/v1/leaderboards/{id}/level/{level}/{category}"
+
+    #Switches between categoryURL and levelURL depending if level is not None
+    finalurl = levelURL if level else categoryURL
+    print(f'id = {id}, category = {category} level = {level} finalurl = {finalurl}')
+
+    async with request("GET",finalurl, headers={}) as response:
         if response.status == 200:
             data = await response.json()
             info = data["data"]["runs"][0]["run"] #Gets the first place run
@@ -108,7 +112,7 @@ async def getid(ctx):
     url = f"https://www.speedrun.com/api/v1/games?_bulk=yes&name={name}"
     index = 0
     id = None
-
+ 
 
 #Creates a pull request for the API URL
     async with request("GET", url,headers={}) as response:
@@ -132,7 +136,7 @@ async def getid(ctx):
                     index = int(msg.content)
 
 
-            elif titles == 1:
+            elif titles == 1: #If only one title is found, skips the selection sequence and goes straight to the first
                 index = 0
 
             elif titles == 0: 
@@ -145,17 +149,34 @@ async def getid(ctx):
                 await ctx.respond("Error: Number out of range to response.")
                 return
             
+            gameTitle = data["data"][index]["names"]["international"]
+
             #Fetches categories from getCategories, prints a list and waits for user to input a number.
-            categoryIndex, categoryList = await getCategories(id)
-            await ctx.respond(f'Game ID for {data["data"][index]["names"]["international"]} is {id}\nCategories are \n{categoryList}')
+            categoryList, categoryString = await getCategories(id)
+            await ctx.respond(f'Game ID for {gameTitle} is {id}\nCategories are \n{categoryString}')
             try: 
                 msg2 = await bot.wait_for(hikari.GuildMessageCreateEvent,timeout = 60)
             except asyncio.exceptions.TimeoutError:
                 print("user Timeout, did not respond in 60 seconds")
             else:
-                category = categoryIndex[int(msg2.content)]["id"]  
+                category = categoryList[int(msg2.content)]["id"]  
 
-            await ctx.respond(await getwr(id,category))
+            #Fetches levels from getLevels if levels exists, prints a list and waits for user to select, 
+
+            levelList, levelString = await getLevels(id)
+            level = None
+            if len(levelList) > 0: 
+                await ctx.respond(f'Game ID for {gameTitle} is {id}\nlevels are \n{levelString}')
+
+                try:
+                    msg3 = await bot.wait_for(hikari.GuildMessageCreateEvent, timeout = 60)
+                except asyncio.exceptions.TimeoutError:
+                    print("user Timeout, did not respond in 60 seconds")
+                else:
+                    if msg.content != "-1":
+                        level = levelList[int(msg3.content)]["id"]
+
+            await ctx.respond(await getwr(id,category,level))
             
 
 
@@ -183,5 +204,31 @@ async def getCategories(id):
                 categories_formatted += str(i) + ") " + data["data"][i]["name"] + "\n"
 
     return (data["data"],categories_formatted) #Returns the the category data structure for indexing AND formatted string
+
+#Helper function that returns a list of levels, essentially the same as categories but with a default value (0)
+async def getLevels(id):
+    url = f"https://www.speedrun.com/api/v1/games/{id}/levels?"
+    levels_formatted = "-1) Default\n"
+
+    async with request("GET", url,headers={}) as response:
+        if response.status == 200:
+            data = await response.json() #Json file returns a dictionary of a list
+            for i in range(len(data["data"])):
+                levels_formatted += str(i) + ") " + data["data"][i]["name"] + "\n"
+
+    return (data["data"],levels_formatted) #Returns the the category data structure for indexing AND formatted string
+
+
+# async def getVariables(id):
+#     url = f"https://www.speedrun.com/api/v1/games/{id}/Variables?"
+#     variables_formatted = "-1) Default\n"
+
+#     async with request("GET", url,headers={}) as response:
+#         if response.status == 200:
+#             data = await response.json() #Json file returns a dictionary of a list
+#             for i in range(len(data["data"])):
+#                 levels_formatted += str(i) + ") " + data["data"][i]["name"] + "\n"
+
+#     return (data["data"],levels_formatted) #Returns the the category data structure for indexing AND formatted string
 
 bot.run()

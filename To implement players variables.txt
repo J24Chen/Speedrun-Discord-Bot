@@ -1,0 +1,39 @@
+Lethal company: 369wyg0d
+
+Category: Death% = q25z0qw2
+
+Level: Company building: ewpmzkjw
+
+Players: Vars?
+
+Variables for num players: gnx39zxn 
+
+1 player = 1dkvpnjl
+
+
+
+KEEP THE LEADBOARD URLS
+
+
+instead add to it doing this:
+f"https://www.speedrun.com/api/v1/leaderboards/{id}/level/{level}/{category}?var-gnx39zxn=10v02y5l"
+
+
+TO IMPLEMENT VARIABLE MENUS
+
+Make user select the variable to choose from:
+From the same function, grab the list of values and allow users to select the ones they want 
+(PERFORM THIS IN THE getwr FUNCTION??)
+
+I think it might be best to make a separate function to get a list of variable options for the variable
+
+Then in the getwr function, make a "varis" variable is a dictionary that contains the value 
+
+Can be done like 
+
+vari = {}
+vari['VARCATEGORY'] = 'VARVALUE'
+
+
+for i in vari:
+    print(i + vari[i])
