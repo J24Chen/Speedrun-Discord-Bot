@@ -219,16 +219,17 @@ async def getLevels(id):
     return (data["data"],levels_formatted) #Returns the the category data structure for indexing AND formatted string
 
 
-# async def getVariables(id):
-#     url = f"https://www.speedrun.com/api/v1/games/{id}/Variables?"
-#     variables_formatted = "-1) Default\n"
+#Helper Function that grabs Varialbe names, but NOT the 
+async def getVarList(id):
+    url = f"https://www.speedrun.com/api/v1/games/{id}/Variables?"
+    variables_formatted = "-1) Default\n"
 
-#     async with request("GET", url,headers={}) as response:
-#         if response.status == 200:
-#             data = await response.json() #Json file returns a dictionary of a list
-#             for i in range(len(data["data"])):
-#                 levels_formatted += str(i) + ") " + data["data"][i]["name"] + "\n"
+    async with request("GET", url,headers={}) as response:
+        if response.status == 200:
+            data = await response.json() #Json file returns a dictionary of a list
+            for i in range(len(data["data"])):
+                levels_formatted += str(i) + ") " + data["data"][i]["name"] + "\n"
 
-#     return (data["data"],levels_formatted) #Returns the the category data structure for indexing AND formatted string
+    return (data["data"],levels_formatted) #Returns the the category data structure for indexing AND formatted string
 
 bot.run()
