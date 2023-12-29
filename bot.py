@@ -4,7 +4,7 @@ import asyncio
 from aiohttp import request
 
 bot = lightbulb.BotApp(
-    token="MTA1NTY4MjM4Nzc1NDg4OTMwOA.G9qM4V.9ed6cpXAx_KrEulWQTKkoxqe6zsB2Yy8ASHJr4",
+    token="[ENTER YOUR TOKEN HERE]",
     intents = hikari.Intents.ALL,
     )
 
