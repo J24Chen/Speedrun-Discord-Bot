@@ -4,7 +4,7 @@ import asyncio
 from aiohttp import request
 
 bot = lightbulb.BotApp(
-    token="[YOUR BOT TOKEN HERE]",
+    token="MTA1NTY4MjM4Nzc1NDg4OTMwOA.G9qM4V.9ed6cpXAx_KrEulWQTKkoxqe6zsB2Yy8ASHJr4",
     intents = hikari.Intents.ALL,
     )
 
@@ -75,15 +75,36 @@ async def fact(ctx):
 ##### WR bot command, 
 # Takes in id and category and returns a video, with time and runner
 
-async def getwr(id,category,level):
+async def getwr(id,category,level,variable):
     
     
+    ###This section deals with selecting the correct URL.
+
+    """
+    Logic: Categories MUST exist, levels and variables are optional,
+    If level exists, the URL changes to include level first, then category ID (shown in categoryURL and levelURL)
+
+    if variables exist, they are appended to the end of the the finalurl, using the format ?var-{VARNAME1}={VARVALUE1}&var=
+    """
     categoryURL = f"https://www.speedrun.com/api/v1/leaderboards/{id}/category/{category}"
     levelURL = f"https://www.speedrun.com/api/v1/leaderboards/{id}/level/{level}/{category}"
-
+    
+    
     #Switches between categoryURL and levelURL depending if level is not None
     finalurl = levelURL if level else categoryURL
+
+
+    #variable is a list that contains pairs of varName,varValue. Iterates through list while adding the appropriate format onto finalurl
+
+    #First variable must have an '?' appended to it, subsequential variables must have '&' appended to it.
+    if variable != []:
+        finalurl += f"?var-{variable[0]}={variable[1]}"
+        for i in range(2,len(variable),2):
+            finalurl += f"&var-{variable[i]}={variable[i+1]}"
+
     print(f'id = {id}, category = {category} level = {level} finalurl = {finalurl}')
+
+
 
     async with request("GET",finalurl, headers={}) as response:
         if response.status == 200:
@@ -101,7 +122,7 @@ async def getwr(id,category,level):
             return f"Pull request failed! response status = {response.status}"
 
 
-
+#TODO: ACTUALLY IMPLEMENT THE VARIABLES IMPLEMENTATION IN GETWR, actually implementing it in URL
 @bot.command
 @lightbulb.option("name","Full string game name", type=str)
 @lightbulb.command("getwr", "Search a game name and get its wr")
@@ -173,16 +194,48 @@ async def getid(ctx):
                 except asyncio.exceptions.TimeoutError:
                     print("user Timeout, did not respond in 60 seconds")
                 else:
-                    if msg.content != "-1":
+                    if msg3.content != "-1":
                         level = levelList[int(msg3.content)]["id"]
+                        
 
-            await ctx.respond(await getwr(id,category,level))
+            varList, varString = await getVarList(id)
+            variable = list()
+
+            if len(varList) > 0:
+                while True:
+                    await ctx.respond(f"Please choose the list of variables you would like to adjust:\n{varString}")
+                    try:
+                        msg4 = await bot.wait_for(hikari.GuildMessageCreateEvent, timeout = 60)
+                    except asyncio.exceptions.TimeoutError:
+                        print("user Timeout, did not respond in 60 seconds")
+                    else:
+                        #Break statement, ends when msg4.content = -1
+                        if msg4.content == "-1": 
+                            break
+
+                        if msg4.content != "-1":
+                            variable.append(varList[int(msg4.content)]["id"])
+                            vardata,datastring = await getVarValue(variable[-1])  #At this point, the last element in the list is the variable name's ID, not the variable's value
+
+                            await ctx.respond(f"Please enter the value for this variable:\n{datastring}")
+                            try:
+                                msg5 = await bot.wait_for(hikari.GuildMessageCreateEvent, timeout = 60)
+                            except asyncio.exceptions.TimeoutError:
+                                print("user Timeout, did not respond in 60 seconds")
+                            else:
+                                print(f"--------vardata values-------- \n{vardata} \n---------------------")
+
+                                #Vardata is formatted in the getVarValue function, only need to index using msg5.content
+                                variable.append(vardata[int(msg5.content)])
+
+            await ctx.respond(await getwr(id,category,level,variable))
             
 
 
 
 
 #Helper function that returns the name of an id
+
 async def getname(id):
     url = f"https://www.speedrun.com/api/v1/users/{id}"
     
@@ -205,10 +258,11 @@ async def getCategories(id):
 
     return (data["data"],categories_formatted) #Returns the the category data structure for indexing AND formatted string
 
-#Helper function that returns a list of levels, essentially the same as categories but with a default value (0)
+
+#Helper function that returns a list of levels, essentially the same as categories but with a default value (-1)
 async def getLevels(id):
     url = f"https://www.speedrun.com/api/v1/games/{id}/levels?"
-    levels_formatted = "-1) Default\n"
+    levels_formatted = "-1) None/NA \n"
 
     async with request("GET", url,headers={}) as response:
         if response.status == 200:
@@ -216,20 +270,38 @@ async def getLevels(id):
             for i in range(len(data["data"])):
                 levels_formatted += str(i) + ") " + data["data"][i]["name"] + "\n"
 
-    return (data["data"],levels_formatted) #Returns the the category data structure for indexing AND formatted string
+    return (data["data"],levels_formatted) #Returns the the levels data structure for indexing AND formatted string
 
 
-#Helper Function that grabs Varialbe names, but NOT the 
+#Helper Function that grabs variable names, but NOT the actual Varialbe values 
 async def getVarList(id):
-    url = f"https://www.speedrun.com/api/v1/games/{id}/Variables?"
-    variables_formatted = "-1) Default\n"
+    url = f"https://www.speedrun.com/api/v1/games/{id}/variables?"
+    variables_formatted = "-1) Skip/Continue\n"
+
 
     async with request("GET", url,headers={}) as response:
         if response.status == 200:
             data = await response.json() #Json file returns a dictionary of a list
             for i in range(len(data["data"])):
-                levels_formatted += str(i) + ") " + data["data"][i]["name"] + "\n"
+                variables_formatted += str(i) + ") " + data["data"][i]["name"] + "\n"
+    return (data["data"],variables_formatted) #Returns the the variable data structure for indexing AND formatted string
 
-    return (data["data"],levels_formatted) #Returns the the category data structure for indexing AND formatted string
+
+#variable values are in dictionaries, this function converts all values into an array for easy indexing
+async def getVarValue(VarID):
+    url = f"https://www.speedrun.com/api/v1/variables/{VarID}"
+    variables_formatted = ""
+    i = 0 
+    varList = list()
+    async with request("GET", url,headers={}) as response:
+        if response.status == 200:
+            data = await response.json()
+            for id, value_data in (data["data"]["values"]["values"].items()):
+                label = value_data["label"]
+                variables_formatted += str(i) + ") " + label + "\n"
+                i+= 1
+                varList.append(id)
+    return (varList,variables_formatted)         
+
 
 bot.run()
